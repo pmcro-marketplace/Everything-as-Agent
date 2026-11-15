@@ -5,10 +5,16 @@ import type {
   DynamicSkillRun,
   DynamicTriggerKind,
 } from '../utils/dynamicSkillRuntime';
+import type { InvocationResult } from '../utils/invocationContract';
+
+type RunWithInvocation = DynamicSkillRun & {
+  approvalReceiptRef?: string;
+  invocationResult?: InvocationResult;
+};
 
 export function DynamicSkillRunner() {
   const [skills, setSkills] = useState<DynamicSkillDefinition[]>([]);
-  const [runs, setRuns] = useState<DynamicSkillRun[]>([]);
+  const [runs, setRuns] = useState<RunWithInvocation[]>([]);
   const [selectedSkillId, setSelectedSkillId] = useState<string>('ollama-local-bridge');
   const [seed, setSeed] = useState<string>('Verify pmcr-o/pmcro-agent runtime projection dynamically');
   const [approvalGranted, setApprovalGranted] = useState<boolean>(false);
@@ -409,6 +415,33 @@ export function DynamicSkillRunner() {
                     </div>
 
                     <div className="text-xs font-mono text-slate-600 truncate">Seed: {run.seed}</div>
+
+                    {run.invocationResult ? (
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span
+                          className={`px-2 py-0.5 font-mono font-medium rounded border ${
+                            run.invocationResult.result.disposition === 'partial'
+                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : 'bg-red-50 text-red-800 border-red-200'
+                          }`}
+                        >
+                          invocation-result: {run.invocationResult.result.disposition}
+                        </span>
+                        <span className="text-slate-500 font-mono">
+                          parentGate={String(run.invocationResult.result.readyForParentGate)} · evidenceRefs=
+                          {run.invocationResult.executionRecord.evidenceRefs.length}
+                        </span>
+                        {run.approvalReceiptRef && (
+                          <span className="text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5 font-mono truncate max-w-[16rem]">
+                            receipt {run.approvalReceiptRef}
+                          </span>
+                        )}
+                      </div>
+                    ) : run.approvalReceiptRef ? (
+                      <div className="text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5 text-xs font-mono truncate max-w-[16rem]">
+                        receipt {run.approvalReceiptRef}
+                      </div>
+                    ) : null}
 
                     <div className="space-y-1 border-t border-slate-100 pt-2">
                       {run.trailFrames.map((frame, i) => (
