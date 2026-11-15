@@ -10,6 +10,12 @@ import {
   type DynamicSkillDefinition,
   type DynamicSkillRun,
 } from './src/utils/dynamicSkillRuntime';
+import { buildInvocationResult, type InvocationResult } from './src/utils/invocationContract';
+
+type RunRecord = DynamicSkillRun & { approvalReceiptRef?: string };
+type RunRecordWithInvocation = RunRecord & { invocationResult?: InvocationResult };
+
+const TERMINAL_RUN_STATUSES = new Set<DynamicSkillRun['status']>(['COMPLETED', 'FAILED', 'TIMED_OUT', 'CANCELLED']);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,8 +28,16 @@ let cachedAt = '2026-11-15T01:18:00Z';
 let cacheSource: 'snapshot' | 'live' = 'snapshot';
 
 const dynamicSkills = new Map<string, DynamicSkillDefinition>();
-const dynamicRuns: DynamicSkillRun[] = [];
+const dynamicRuns: RunRecord[] = [];
 const activeRunControllers = new Map<string, AbortController>();
+
+/** Attach the pmcro.agent-invocation-result/v1 record to terminal runs that still have a registered skill. */
+function runWithInvocation(run: RunRecord): RunRecordWithInvocation {
+  if (!TERMINAL_RUN_STATUSES.has(run.status)) return run;
+  const skill = dynamicSkills.get(run.skillId);
+  if (!skill) return run;
+  return { ...run, invocationResult: buildInvocationResult(run, skill) };
+}
 
 function seedInitialDynamicSkills() {
   const defaults = [
@@ -364,7 +378,7 @@ async function startServer() {
   app.get('/api/skills/dynamic', (_req, res) => {
     res.json({
       skills: Array.from(dynamicSkills.values()),
-      runs: dynamicRuns.slice(0, 20),
+      runs: dynamicRuns.slice(0, 20).map(runWithInvocation),
     });
   });
 
@@ -379,9 +393,24 @@ async function startServer() {
 
   app.get('/api/skills/dynamic/runs', (_req, res) => {
     res.json({
-      runs: dynamicRuns.slice(0, 20),
+      runs: dynamicRuns.slice(0, 20).map(runWithInvocation),
       activeCount: activeRunControllers.size,
     });
+  });
+
+  app.get('/api/skills/dynamic/runs/:runId/invocation-result', (req, res) => {
+    const runRecord = dynamicRuns.find((r) => r.runId === req.params.runId);
+    if (!runRecord) {
+      return res.status(404).json({ ok: false, error: `Run "${req.params.runId}" not found.` });
+    }
+    if (!TERMINAL_RUN_STATUSES.has(runRecord.status)) {
+      return res.status(409).json({ ok: false, error: `Run "${req.params.runId}" is still ${runRecord.status}; no terminal invocation result yet.` });
+    }
+    const skill = dynamicSkills.get(runRecord.skillId);
+    if (!skill) {
+      return res.status(404).json({ ok: false, error: `Skill "${runRecord.skillId}" is no longer registered; cannot reconstruct the invocation result.` });
+    }
+    return res.json({ ok: true, invocationResult: buildInvocationResult(runRecord, skill) });
   });
 
   app.post('/api/skills/dynamic/:id/run', async (req, res) => {
@@ -407,13 +436,17 @@ async function startServer() {
 
     const runId = `run-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
     const nowIso = new Date().toISOString();
-    const runRecord: DynamicSkillRun = {
+    const approvalReceiptRef = skill.policy.requiresApprovalGate
+      ? `approval:${runId}:${Math.random().toString(36).slice(2, 10)}`
+      : undefined;
+    const runRecord: RunRecord = {
       runId,
       skillId: skill.id,
       seed: String(seed).trim(),
       status: 'RUNNING',
       runtimeTarget: skill.runtimeTarget,
       startedAt: nowIso,
+      ...(approvalReceiptRef ? { approvalReceiptRef } : {}),
       trailFrames: [
         {
           phase: 'ORCHESTRATE',
@@ -421,6 +454,16 @@ async function startServer() {
           message: `Admitted live dynamic skill "${skill.id}" (${skill.trigger}).`,
           timestamp: nowIso,
         },
+        ...(approvalReceiptRef
+          ? [
+              {
+                phase: 'ORCHESTRATE' as const,
+                status: 'OK' as const,
+                message: `Human approval gate satisfied; receipt ${approvalReceiptRef}.`,
+                timestamp: nowIso,
+              },
+            ]
+          : []),
       ],
     };
 
