@@ -1,0 +1,6 @@
+{
+  "name": "Everything Marketplaces — PMCR-O Control Plane",
+  "description": "PMCR-O ecosystem control plane for browsing member marketplaces, composing C-suite teams, rehearsing cycles, drafting identity-preserving artifacts, verifying promotion gates, and exporting copyable install plans.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
