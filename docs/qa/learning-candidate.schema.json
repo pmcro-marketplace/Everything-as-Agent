@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pmcro-marketplace.github.io/schemas/learning-candidate.schema.json",
+  "title": "Everything-as-Agent Learning Candidate",
+  "description": "Governed candidate derived from verified Cognitive Trail evidence. This document never proves that model training executed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "version",
+    "candidate_id",
+    "source_trail_id",
+    "source_cycle_id",
+    "source_trail_verified",
+    "source_checker_verdict",
+    "promotion_state",
+    "approved_uses",
+    "lineage",
+    "evidence",
+    "training_invocation",
+    "training_capability"
+  ],
+  "properties": {
+    "kind": {
+      "const": "LearningCandidate"
+    },
+    "version": {
+      "const": 1
+    },
+    "candidate_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "source_trail_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "source_cycle_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "source_trail_verified": {
+      "const": true
+    },
+    "source_checker_verdict": {
+      "const": "PASS"
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": [
+        "RECORDED",
+        "VERIFIED",
+        "EVALUATED",
+        "APPROVED_FOR_LEARNING",
+        "CANDIDATE",
+        "TESTED",
+        "PROMOTED"
+      ]
+    },
+    "approved_uses": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "retrieval",
+          "skill-generation",
+          "policy-optimization",
+          "prompt-optimization",
+          "model-training"
+        ]
+      }
+    },
+    "lineage": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "minItems": 1
+    },
+    "training_invocation": {
+      "type": "string",
+      "enum": [
+        "INVOKED",
+        "NOT_INVOKED"
+      ]
+    },
+    "training_capability": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "agent",
+            "plugin",
+            "skill",
+            "function",
+            "provider"
+          ],
+          "properties": {
+            "agent": {
+              "type": "string",
+              "minLength": 1
+            },
+            "plugin": {
+              "type": "string",
+              "minLength": 1
+            },
+            "skill": {
+              "type": "string",
+              "minLength": 1
+            },
+            "function": {
+              "type": "string",
+              "minLength": 1
+            },
+            "provider": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "training_invocation": {
+            "const": "INVOKED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "training_capability": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ]
+}

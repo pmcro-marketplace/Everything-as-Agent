@@ -1,0 +1,159 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pmcro-marketplace.github.io/schemas/qa-report.schema.json",
+  "title": "Everything-as-Agent QA Report",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "subject",
+    "behavioral_intent",
+    "resolved_capability",
+    "provider",
+    "environment",
+    "status",
+    "tests_performed",
+    "tests_skipped",
+    "evidence",
+    "cognitive_trail_id",
+    "defects",
+    "capability_gaps",
+    "governance_violations",
+    "regressions",
+    "learning_candidates",
+    "checker_verdict",
+    "next_intent"
+  ],
+  "properties": {
+    "subject": {
+      "type": "string",
+      "minLength": 1
+    },
+    "behavioral_intent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resolved_capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent",
+        "plugin",
+        "skill",
+        "function"
+      ],
+      "properties": {
+        "agent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plugin": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill": {
+          "type": "string",
+          "minLength": 1
+        },
+        "function": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "provider": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "environment": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "FAIL",
+        "LOOP",
+        "HALT",
+        "BLOCKED",
+        "NOT_INVOKED",
+        "UNVERIFIED"
+      ]
+    },
+    "tests_performed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tests_skipped": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence": {
+      "type": "array"
+    },
+    "cognitive_trail_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uuid"
+    },
+    "defects": {
+      "type": "array"
+    },
+    "capability_gaps": {
+      "type": "array"
+    },
+    "governance_violations": {
+      "type": "array"
+    },
+    "regressions": {
+      "type": "array"
+    },
+    "learning_candidates": {
+      "type": "array"
+    },
+    "checker_verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "LOOP",
+        "HALT",
+        "BLOCKED",
+        "NOT_INVOKED",
+        "UNVERIFIED"
+      ]
+    },
+    "next_intent": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "PASS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "evidence": {
+            "minItems": 1
+          },
+          "checker_verdict": {
+            "const": "PASS"
+          }
+        }
+      }
+    }
+  ]
+}
