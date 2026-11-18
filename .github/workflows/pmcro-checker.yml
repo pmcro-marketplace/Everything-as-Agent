@@ -13,6 +13,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Check out reviewed Marketplace Agent
+        uses: actions/checkout@v4
+        with:
+          repository: pmcro-marketplace/marketplace-agent
+          ref: 5a384a33fed247fb2b85b177ccb9b6ca3901c36c
+          path: .provider/marketplace-agent
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -20,10 +27,14 @@ jobs:
         with:
           node-version: '24'
       - name: Check authored catalogs and fail-closed provider gates
+        env:
+          PMCRO_MARKETPLACE_PROVIDER_CHECKOUT: ${{ github.workspace }}/.provider/marketplace-agent
         run: |
           python -B eng/marketplaces/test_validate.py
           python -B eng/marketplaces/test_resolve.py
           python -B eng/marketplaces/validate.py
+          git -C "$PMCRO_MARKETPLACE_PROVIDER_CHECKOUT" rev-parse HEAD
+          (cd "$PMCRO_MARKETPLACE_PROVIDER_CHECKOUT" && python -B -m unittest discover -s tests -v)
       - name: Check control plane
         run: |
           npm install --ignore-scripts --no-package-lock --no-audit --no-fund --legacy-peer-deps
@@ -32,4 +43,4 @@ jobs:
           node --import tsx --test src/utils/*.test.ts
       - name: Checker evidence summary
         run: |
-          printf '%s\n' '## PMCR-O Checker' 'Catalog structure, fail-closed gates, TypeScript, build and regression tests passed.' 'This check does not execute private local providers or approve merging.' >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' '## PMCR-O Checker' 'Catalog structure, pinned provider gates, TypeScript, build and regression tests passed.' 'A catalog-only PMCR-O cycle persisted and reopened ten correlated frames in an isolated test project.' 'No private operator state was uploaded; no external provider or independent host agent was invoked by the catalog-only cycle. Approval was not issued.' >> "$GITHUB_STEP_SUMMARY"

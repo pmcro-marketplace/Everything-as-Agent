@@ -45,12 +45,17 @@ contract and actual result. Missing host capabilities remain blocked.
 
 ## Governed discovery and invocation
 
-The local operator bridge lists exact marketplace/agent/plugin/skill routes:
+The local operator bridge delegates to Marketplace Agent at the reviewed
+commit `5a384a33fed247fb2b85b177ccb9b6ca3901c36c`. Supply an existing canonical
+absolute Git checkout of [Marketplace Agent](https://github.com/pmcro-marketplace/marketplace-agent)
+containing this commit. The bridge verifies the origin and materializes only
+reviewed immutable source objects into a temporary directory. It has no fallback
+execution implementation. It lists exact marketplace/agent/plugin/skill routes:
 
 ```sh
-python3 eng/marketplaces/resolve.py discover
-python3 eng/marketplaces/resolve.py discover --marketplace project-management
-python3 eng/marketplaces/test_resolve.py
+python3 eng/marketplaces/resolve.py discover --provider-checkout /absolute/marketplace-agent
+python3 eng/marketplaces/resolve.py discover --provider-checkout /absolute/marketplace-agent --marketplace project-management
+PMCRO_MARKETPLACE_PROVIDER_CHECKOUT=/absolute/marketplace-agent python3 eng/marketplaces/test_resolve.py
 ```
 
 It emits a PMCR-O `BehavioralIntent` handoff while retaining the original prompt.
@@ -64,20 +69,27 @@ and the exact operation on stdin:
 
 ```sh
 printf '%s' '{"operation":"check"}' | python3 eng/marketplaces/resolve.py resolve \
+  --provider-checkout /absolute/marketplace-agent \
   --marketplace project-management --agent dotagents-agent \
   --plugin dotagents --skill doctor \
   --checkout shawn2024bellazan-prog/agent-skills=/absolute/agentskills \
   --project /absolute/project
 ```
 
-Only an independent operator may append `--execute --allow /dotagents:doctor`.
+Only an independent operator may append `--execute --allow /dotagents:doctor --project-id demo`.
 The bridge verifies the catalog pin, Git origin, reviewed adapter hashes, scope
 and exact read-only request. It invokes the existing fixed-verb provider from
 the pinned Git objects; it does not implement `doctor`, accept `--fix`, install
 anything, expose a web execution endpoint, or accept a grant from message data.
 The receipt reports the real adapter/provider exit and observed health check
 plus an output digest, without printing private provider output. The preserved
-prompt may itself be private; keep local handoff receipts private.
+prompt may itself be private; keep local handoff receipts private. Every
+execution attempt requires an explicit project ID registered under
+`~/.pmcro/projects/` with owner-only POSIX permissions. The canonical provider
+persists resolver, capability and adapter frames before and after actual
+invocation, seals their inventory, and returns correlation IDs. If the private
+trail cannot be written, execution fails closed. The reviewed provider does
+not yet support Windows-native trail storage; use a validated POSIX host.
 
 For list, use the same command with `--skill list`, the exact stdin request
 `{"operation":"list"}`, and execution grant `--execute --allow /dotagents:list`.
@@ -88,6 +100,7 @@ registry root (normally the operator's `~/.pmcro`):
 
 ```sh
 printf '%s' '{"operation":"status"}' | python3 eng/marketplaces/resolve.py resolve \
+  --provider-checkout /absolute/marketplace-agent \
   --marketplace project-management --agent project-agent \
   --plugin projects --skill project-lifecycle \
   --checkout shawn2024bellazan-prog/agent-skills=/absolute/agentskills \
@@ -100,6 +113,28 @@ exact reviewed adapter with `--bound-adapter /absolute/path/to/dotagents.py`.
 Append `--execute --allow /projects:project-lifecycle` only with independent
 authorization. Do not change the registry or adapter concurrently with invocation.
 Neither operation reads memory contents, creates a host project, or starts runtime.
+
+## Catalog-only trail acceptance
+
+The same provider implements a bounded catalog-only acceptance cycle. It
+scaffolds a disposable catalog, validates and discovers its routes, then
+checks and reflects on the persisted evidence. Use an existing authorized
+private test project, never a live production project for a rehearsal:
+
+```sh
+python3 eng/marketplaces/resolve.py catalog-cycle \
+  --provider-checkout /absolute/marketplace-agent \
+  --project-id demo --operation run --execute
+python3 eng/marketplaces/resolve.py catalog-cycle \
+  --provider-checkout /absolute/marketplace-agent \
+  --project-id demo --operation verify --trail-id RETURNED_UUID
+```
+
+Reopening checks the ten terminal frames, their start records, parent
+correlations, and SHA-256 seal. These are real local deterministic catalog
+operations, not independent host-agent invocations or approval decisions.
+The test workflow uses an isolated temporary private project and publishes
+only its non-sensitive Checker summary, never raw trail files.
 
 Creator handoffs use the existing exact routes:
 
