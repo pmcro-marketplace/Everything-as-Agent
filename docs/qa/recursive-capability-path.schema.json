@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pmcro-marketplace.github.io/schemas/recursive-capability-path.schema.json",
+  "title": "Recursive Capability QA Path",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "original_capability",
+    "original_disposition",
+    "gap_evidence",
+    "creator",
+    "creation_receipt",
+    "validation_evidence",
+    "registration_evidence",
+    "reresolution_evidence",
+    "final_provider",
+    "final_invocation",
+    "recursion_cycle_detected",
+    "manual_bypass"
+  ],
+  "properties": {
+    "original_capability": {
+      "type": "string",
+      "minLength": 1
+    },
+    "original_disposition": {
+      "type": "string",
+      "enum": [
+        "BLOCKED",
+        "NOT_INVOKED"
+      ]
+    },
+    "gap_evidence": {
+      "type": "array",
+      "minItems": 1
+    },
+    "creator": {
+      "type": "object",
+      "required": [
+        "agent",
+        "plugin",
+        "skill",
+        "function"
+      ],
+      "properties": {
+        "agent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plugin": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill": {
+          "type": "string",
+          "minLength": 1
+        },
+        "function": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "creation_receipt": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "validation_evidence": {
+      "type": "array"
+    },
+    "registration_evidence": {
+      "type": "array"
+    },
+    "reresolution_evidence": {
+      "type": "array"
+    },
+    "final_provider": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "final_invocation": {
+      "type": "string",
+      "enum": [
+        "INVOKED",
+        "NOT_INVOKED",
+        "BLOCKED"
+      ]
+    },
+    "recursion_cycle_detected": {
+      "type": "boolean"
+    },
+    "manual_bypass": {
+      "const": false
+    }
+  }
+}
