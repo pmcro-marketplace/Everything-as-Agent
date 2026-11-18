@@ -74,7 +74,7 @@ export function CatalogView({
       <section aria-label="Federated micro-marketplaces" className="space-y-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-900">Creator micro-marketplaces</h2>
-          <p className="text-xs text-slate-600">Four source-backed catalogs. Membership is declarative; resolve the provider and authorization before execution.</p>
+          <p className="text-xs text-slate-600">Four source-backed catalogs. Discover exact capability addresses; resolve the real provider and authorization before execution. Local operator bridge: <code>eng/marketplaces/resolve.py</code>.</p>
         </div>
         <div className="grid gap-3 md:grid-cols-2">
           {MICRO_MARKETPLACES.map(marketplace => (
@@ -94,7 +94,8 @@ export function CatalogView({
                       ) : <span className="text-amber-700">Host discovery required</span>}
                       {!member.enabled && <span>Disabled</span>}
                     </div>
-                    <p className="mt-1 break-words font-mono">{member.skills.join(' · ')}</p>
+                    <p className="mt-1 text-slate-500">@{member.agent}</p>
+                    <p className="mt-1 break-words font-mono">{member.skills.map(skill => `/${member.name}:${skill}`).join(' · ')}</p>
                   </li>
                 ))}
               </ul>

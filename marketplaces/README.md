@@ -43,6 +43,47 @@ PASS` means sources/host skill names were resolved, not that an operation ran.
 Dispatch must independently resolve authorization, executable provider, input
 contract and actual result. Missing host capabilities remain blocked.
 
+## Governed discovery and invocation
+
+The local operator bridge lists exact marketplace/agent/plugin/skill routes:
+
+```sh
+python3 eng/marketplaces/resolve.py discover
+python3 eng/marketplaces/resolve.py discover --marketplace project-management
+python3 eng/marketplaces/test_resolve.py
+```
+
+It emits a PMCR-O `BehavioralIntent` handoff while retaining the original prompt.
+The catalog is not the Dispatch registry: a discovered skill is not automatically
+an executable adapter. The first independently reviewed adapter is the read-only
+`/dotagents:doctor` entrypoint. Resolve it without execution using an existing
+AgentSkills checkout containing the pinned commit, an initialized disposable or
+explicitly authorized project root, an installed trusted DotAgents CLI on PATH,
+and the exact operation on stdin:
+
+```sh
+printf '%s' '{"operation":"check"}' | python3 eng/marketplaces/resolve.py resolve \
+  --marketplace project-management --agent dotagents-agent \
+  --plugin dotagents --skill doctor \
+  --checkout shawn2024bellazan-prog/agent-skills=/absolute/agentskills \
+  --project /absolute/project
+```
+
+Only an independent operator may append `--execute --allow /dotagents:doctor`.
+The bridge verifies the catalog pin, Git origin, reviewed adapter hashes, scope
+and exact read-only request. It invokes the existing fixed-verb provider from
+the pinned Git objects; it does not implement `doctor`, accept `--fix`, install
+anything, expose a web execution endpoint, or accept a grant from message data.
+The receipt reports the real adapter/provider exit and observed health check
+plus an output digest, without printing private provider output. The preserved
+prompt may itself be private; keep local handoff receipts private.
+
+All remaining capabilities, including the host creator skills, return
+`BLOCKED` / `NOT_INVOKED` until their real operator-authorized executable adapters
+are available. The handoff can be sent to the existing PMCR-O Dispatch/host
+provider when registered; it is not itself evidence of dispatch or network
+delivery. A known catalog member lacking an adapter is not a missing skill.
+
 ## Governance
 
 Only Marketplace Agent changes membership; provider source changes belong to the
