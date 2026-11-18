@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Search, Check, Plus } from 'lucide-react';
+import { MICRO_MARKETPLACES } from '../data/microMarketplaces';
 import {
   CATALOG_PACKAGES,
   MEMBER_MARKETPLACES,
@@ -67,6 +68,38 @@ export function CatalogView({
           >
             Staged ({stagedPackageIds.length})
           </button>
+        </div>
+      </section>
+
+      <section aria-label="Federated micro-marketplaces" className="space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">Creator micro-marketplaces</h2>
+          <p className="text-xs text-slate-600">Four source-backed catalogs. Membership is declarative; resolve the provider and authorization before execution.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {MICRO_MARKETPLACES.map(marketplace => (
+            <article key={marketplace.name} className="rounded-lg border border-slate-200 bg-white p-4">
+              <h3 className="font-semibold text-sm text-slate-900 capitalize">{marketplace.name.replaceAll('-', ' ')}</h3>
+              <p className="mt-1 text-xs text-slate-500">{marketplace.plugins.length} provider memberships</p>
+              <ul className="mt-3 space-y-3">
+                {marketplace.plugins.map(member => (
+                  <li key={member.name} className="text-xs text-slate-600">
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <span className="font-mono font-semibold text-slate-900">{member.name}</span>
+                      {member.source.type === 'github-plugin' ? (
+                        <a className="text-blue-700 underline" target="_blank" rel="noreferrer"
+                          href={`https://github.com/${member.source.repository}/tree/${member.source.ref}/${member.source.path === '.' ? '' : member.source.path}`}>
+                          Pinned source {member.source.ref.slice(0, 7)}
+                        </a>
+                      ) : <span className="text-amber-700">Host discovery required</span>}
+                      {!member.enabled && <span>Disabled</span>}
+                    </div>
+                    <p className="mt-1 break-words font-mono">{member.skills.join(' · ')}</p>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          ))}
         </div>
       </section>
 
