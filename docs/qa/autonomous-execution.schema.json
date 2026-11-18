@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pmcro-marketplace.github.io/schemas/autonomous-execution.schema.json",
+  "title": "Autonomous-in-the-Loop QA Run",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "behavioral_intent",
+    "promoted_behavior_id",
+    "current_authorization",
+    "policy_allows",
+    "resolved_capability",
+    "provider",
+    "provider_invocation",
+    "checker_verdict",
+    "cognitive_trail_verified",
+    "drift_detected"
+  ],
+  "properties": {
+    "behavioral_intent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "promoted_behavior_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "current_authorization": {
+      "type": "boolean"
+    },
+    "policy_allows": {
+      "type": "boolean"
+    },
+    "resolved_capability": {
+      "type": "object",
+      "required": [
+        "agent",
+        "plugin",
+        "skill",
+        "function"
+      ],
+      "properties": {
+        "agent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "plugin": {
+          "type": "string",
+          "minLength": 1
+        },
+        "skill": {
+          "type": "string",
+          "minLength": 1
+        },
+        "function": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "provider_invocation": {
+      "type": "string",
+      "enum": [
+        "INVOKED",
+        "NOT_INVOKED"
+      ]
+    },
+    "checker_verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "LOOP",
+        "HALT",
+        "BLOCKED",
+        "NOT_INVOKED",
+        "UNVERIFIED"
+      ]
+    },
+    "cognitive_trail_verified": {
+      "type": "boolean"
+    },
+    "drift_detected": {
+      "type": "boolean"
+    }
+  }
+}
