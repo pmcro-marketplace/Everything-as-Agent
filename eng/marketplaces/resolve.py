@@ -14,6 +14,7 @@ import tempfile
 from pathlib import Path
 
 from validate import ROOT, DOMAINS, git, pairs, parse, require, validate
+from read_adapters import LIST, PROJECT, source, invoke_list, invoke_project
 
 DOCTOR = "/dotagents:doctor"
 DOCTOR_SOURCE = {
@@ -35,12 +36,15 @@ def discover(root=ROOT, checkouts=None, host=None, selected=None):
         for member in catalog["plugins"]:
             for skill in member["skills"]:
                 address = f"/{member['name']}:{skill}"
-                adapter = (domain == "project-management" and member["agent"] == "dotagents-agent"
-                           and address == DOCTOR and member["source"] == DOCTOR_SOURCE)
+                adapter = "HOST_ADAPTER_REQUIRED"
+                if domain == "project-management" and member["agent"] == "dotagents-agent" and member["source"] == DOCTOR_SOURCE:
+                    adapter = {DOCTOR: "dotagents-doctor", LIST: "dotagents-list"}.get(address, adapter)
+                if domain == "project-management" and member["agent"] == "project-agent" and address == PROJECT and member["source"] == source("projects"):
+                    adapter = "project-lifecycle-read"
                 rows.append({"marketplace": domain, "agent": member["agent"], "plugin": member["name"],
                              "skill": skill, "address": address, "source": member["source"],
                              "enabled": member["enabled"], "resolution": resolved[(domain, member["name"])],
-                             "adapter": "dotagents-doctor" if adapter else "HOST_ADAPTER_REQUIRED"})
+                             "adapter": adapter})
     return rows
 
 
@@ -57,12 +61,13 @@ def intent(row, prompt):
             "to": f"{row['plugin']}:{row['agent']}", "chain": [{"skill": row["address"], "prompt": prompt}]}
 
 
-def approved_project(value):
+def approved_project(value, dotagents=True):
     require(value is not None and value.is_absolute(), "Explicit absolute project root required")
     root = value.resolve(strict=True)
     require(value == root and root.is_dir() and ".pmcro" not in root.parts,
             "Project must be an existing canonical directory outside private PMCR-O state")
-    require((root / "agents.toml").is_file(), "Project is not initialized for DotAgents")
+    if dotagents:
+        require((root / "agents.toml").is_file(), "Project is not initialized for DotAgents")
     return root
 
 
@@ -103,7 +108,7 @@ def doctor(checkout, project, execute):
             "stdout_sha256": hashlib.sha256(result.stdout).hexdigest(), "check_passed": passed}
 
 
-def route(row, prompt, checkouts, project=None, execute=False, allowed=()):
+def route(row, prompt, checkouts, project=None, execute=False, allowed=(), project_id=None, state=None, bound_adapter=None):
     receipt = {"kind": "MarketplaceCapabilityReceipt", "capability": row,
                "handoff": intent(row, prompt), "invocation": "NOT_INVOKED"}
     def blocked(reason):
@@ -113,20 +118,31 @@ def route(row, prompt, checkouts, project=None, execute=False, allowed=()):
         return blocked("MEMBERSHIP_DISABLED")
     if row["resolution"] not in {"RESOLVED_SOURCE", "RESOLVED_HOST"}:
         return blocked("PROVIDER_DISCOVERY_REQUIRED")
-    if row["adapter"] != "dotagents-doctor" or row["source"] != DOCTOR_SOURCE:
+    expected = {DOCTOR: ("dotagents-doctor", DOCTOR_SOURCE), LIST: ("dotagents-list", DOCTOR_SOURCE),
+                PROJECT: ("project-lifecycle-read", source("projects"))}.get(row["address"])
+    if expected is None or (row["adapter"], row["source"]) != expected:
         return blocked("HOST_ADAPTER_REQUIRED")
-    if execute and tuple(allowed) != (DOCTOR,):
+    if execute and tuple(allowed) != (row["address"],):
         return blocked("EXACT_OPERATOR_GRANT_REQUIRED")
     try:
-        require(parse(prompt) == {"operation": "check"}, "Doctor accepts only a read-only check request")
+        request = parse(prompt)
+        require(isinstance(request, dict) and set(request) == {"operation"}, "Exact read-only operation required")
+        operations = {DOCTOR: ("check",), LIST: ("list",), PROJECT: ("status", "runtime")}
+        require(request["operation"] in operations[row["address"]], "Invalid read-only operation")
     except (ValueError, TypeError, RecursionError):
         return blocked("INVALID_READ_ONLY_REQUEST")
     try:
-        root = approved_project(project)
+        root = approved_project(project, dotagents=row["address"] != PROJECT)
     except (ValueError, OSError, RuntimeError):
         return blocked("PROJECT_SCOPE_INVALID")
     try:
-        receipt.update(doctor(checkouts[DOCTOR_SOURCE["repository"]], root, execute))
+        checkout = checkouts[row["source"]["repository"]]
+        if row["address"] == DOCTOR:
+            receipt.update(doctor(checkout, root, execute))
+        elif row["address"] == LIST:
+            receipt.update(invoke_list(checkout, root, execute))
+        else:
+            receipt.update(invoke_project(checkout, root, project_id, state, request["operation"], bound_adapter, execute))
     except subprocess.TimeoutExpired:
         receipt.update(status="FAIL", invocation="UNVERIFIED", reason="Provider timed out; do not retry without checking state")
     except (ValueError, OSError, KeyError, subprocess.CalledProcessError, TypeError):
@@ -145,6 +161,9 @@ def main():
     parser.add_argument("--checkout", action="append", default=[], metavar="OWNER/REPO=PATH")
     parser.add_argument("--host", action="append", default=[], metavar="PLUGIN=SKILL,SKILL")
     parser.add_argument("--project", type=Path)
+    parser.add_argument("--project-id")
+    parser.add_argument("--pmcro-root", type=Path)
+    parser.add_argument("--bound-adapter", type=Path, help="Independently approved exact bound DotAgents adapter path for runtime")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--allow", action="append", default=[])
     args = parser.parse_args()
@@ -159,7 +178,8 @@ def main():
         row = select(rows, args.marketplace, args.agent, args.plugin, args.skill)
         raw = sys.stdin.buffer.read(16385)
         require(len(raw) <= 16384, "Prompt exceeds limit")
-        receipt = route(row, raw.decode("utf-8"), checkouts, args.project, args.execute, args.allow)
+        receipt = route(row, raw.decode("utf-8"), checkouts, args.project, args.execute, args.allow,
+                        args.project_id, args.pmcro_root, args.bound_adapter)
         # The prompt is retained for local handoff. Do not publish receipts with private inputs.
         print(json.dumps(receipt, indent=2))
         return 0 if receipt["status"] in {"PASS", "READY_FOR_HANDOFF"} else 1

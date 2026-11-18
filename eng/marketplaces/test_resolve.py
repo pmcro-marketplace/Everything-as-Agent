@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
 from resolve import DOCTOR, DOCTOR_SOURCE, discover, route, select, reviewed_files, doctor
+from read_adapters import LIST, PROJECT, invoke_list, invoke_project
 
 
 class CapabilityTests(unittest.TestCase):
@@ -22,6 +23,7 @@ class CapabilityTests(unittest.TestCase):
         self.assertEqual(len(self.rows), 23)
         self.assertEqual(len({(r["marketplace"], r["address"]) for r in self.rows}), 23)
         self.assertEqual(sum(r["adapter"] == "dotagents-doctor" for r in self.rows), 1)
+        self.assertEqual(sum(r["adapter"] != "HOST_ADAPTER_REQUIRED" for r in self.rows), 3)
 
     def test_exact_agent_identity(self):
         with self.assertRaises(ValueError):
@@ -91,6 +93,54 @@ class CapabilityTests(unittest.TestCase):
         self.assertEqual(result["provider_exit"], 0)
         self.assertNotIn("--fix", call.call_args.args[0])
         self.assertNotIn("--apply", call.call_args.args[0])
+
+    @patch("resolve.invoke_list")
+    def test_list_exact_grant_and_operation(self, provider):
+        row = {**select(self.rows, "project-management", "dotagents-agent", "dotagents", "list"), "resolution": "RESOLVED_SOURCE"}
+        for prompt, grant in [('{"operation":"list"}', [DOCTOR]), ('{"operation":"install"}', [LIST]), ('{"operation":"list","global":true}', [LIST])]:
+            self.assertEqual(route(row, prompt, self.checkouts, self.project, True, grant)["status"], "BLOCKED")
+        provider.assert_not_called()
+        provider.return_value = {"status": "PASS", "invocation": "INVOKED"}
+        self.assertEqual(route(row, '{"operation":"list"}', self.checkouts, self.project, True, [LIST])["status"], "PASS")
+        provider.assert_called_once_with(self.project, self.project, True)
+
+    @patch("resolve.invoke_project")
+    def test_lifecycle_mutations_denied(self, provider):
+        row = {**select(self.rows, "project-management", "project-agent", "projects", "project-lifecycle"), "resolution": "RESOLVED_SOURCE"}
+        for operation in ("register", "init", "activate", "archive", "start"):
+            self.assertEqual(route(row, '{"operation":"'+operation+'"}', self.checkouts, self.project, True, [PROJECT])["status"], "BLOCKED")
+        provider.assert_not_called()
+        provider.return_value = {"status": "READY_FOR_HANDOFF", "invocation": "NOT_INVOKED"}
+        self.assertEqual(route(row, '{"operation":"status"}', self.checkouts, self.project)["status"], "READY_FOR_HANDOFF")
+        provider.assert_called_once_with(self.project, self.project, None, None, "status", None, False)
+
+    @patch("read_adapters.materialize")
+    @patch("read_adapters.shutil.which", return_value="/local/dotagents")
+    @patch("read_adapters.subprocess.run", return_value=subprocess.CompletedProcess([], 0,
+        stdout=b'Invoke: dotagents --project list\n{"skills":[{"name":"private-name"}],"plugins":[]}\nProvider exit: 0\n'))
+    def test_list_receipt_redacts_names(self, call, _which, _materialize):
+        result = invoke_list(self.project, self.project, True)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["skill_count"], 1)
+        self.assertNotIn("private-name", str(result))
+        self.assertIn("--json", call.call_args.args[0])
+
+    def test_project_scope_rejects_overlap_and_invalid_id(self):
+        for identifier, state in [("../escape", self.project), ("demo", self.project), ("demo", Path("."))]:
+            with self.assertRaises(ValueError):
+                invoke_project(self.project, self.project, identifier, state, "status", None, False)
+
+    @patch("read_adapters.materialize")
+    @patch("read_adapters.subprocess.run")
+    @patch("read_adapters.runpy.run_path")
+    def test_runtime_denies_unreviewed_binding(self, load, execute, _materialize):
+        with TemporaryDirectory() as state:
+            load.return_value = {"RESERVED": set(), "absolute": lambda p: p, "private_dir": lambda p: None,
+                                 "read_record": lambda p, i: {"project_root": str(self.project),
+                                      "configuration": {"adapter": "/unknown", "sha256": "unreviewed"}}}
+            with self.assertRaises(ValueError):
+                invoke_project(self.project, self.project, "demo", Path(state), "runtime", Path("/unknown"), True)
+            execute.assert_not_called()
 
 
 if __name__ == "__main__":

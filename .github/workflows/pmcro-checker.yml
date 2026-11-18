@@ -1,0 +1,35 @@
+name: PMCR-O Checker
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checker:
+    name: Catalog, provider gates and control plane
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check authored catalogs and fail-closed provider gates
+        run: |
+          python -B eng/marketplaces/test_validate.py
+          python -B eng/marketplaces/test_resolve.py
+          python -B eng/marketplaces/validate.py
+      - name: Check control plane
+        run: |
+          npm install --ignore-scripts --no-package-lock --no-audit --no-fund --legacy-peer-deps
+          npm run lint
+          npm run build
+          node --import tsx --test src/utils/*.test.ts
+      - name: Checker evidence summary
+        run: |
+          printf '%s\n' '## PMCR-O Checker' 'Catalog structure, fail-closed gates, TypeScript, build and regression tests passed.' 'This check does not execute private local providers or approve merging.' >> "$GITHUB_STEP_SUMMARY"
