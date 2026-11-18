@@ -1,0 +1,61 @@
+name: Everything-as-Agent QA Foundation
+
+on:
+  push:
+    branches:
+      - claude/qa-system-foundation
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qa-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript contract check
+        run: npm run lint
+
+      - name: Existing behavioral tests
+        run: npx tsx --test src/utils/*.test.ts
+
+      - name: Build application
+        run: npm run build
+
+      - name: QA architecture artifacts
+        shell: bash
+        run: |
+          test -f docs/qa/QA-CAPABILITY-MAP.md
+          test -f docs/adr/0001-generic-qa-agent-domain.md
+          grep -q "No PASS without evidence" docs/qa/QA-CAPABILITY-MAP.md
+          grep -q "Cognitive Trail" docs/qa/QA-CAPABILITY-MAP.md
+
+      - name: Evidence summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## QA Foundation"
+            echo "- TypeScript: attempted"
+            echo "- Existing behavioral tests: attempted"
+            echo "- Build: attempted"
+            echo "- QA capability map: checked"
+            echo "- ADR: checked"
+            echo ""
+            echo "This workflow proves only the checks that completed successfully. It does not claim native PMCR-O role providers, A2A reasoning providers, MCP providers, or QA-plugin runtime discovery."
+          } >> "$GITHUB_STEP_SUMMARY"
