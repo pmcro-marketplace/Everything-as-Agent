@@ -40,9 +40,13 @@ jobs:
         shell: bash
         run: |
           test -f docs/qa/QA-CAPABILITY-MAP.md
+          test -f docs/qa/DEFECT-TAXONOMY.md
           test -f docs/adr/0001-generic-qa-agent-domain.md
+          test -f docs/adr/0002-governed-pmcro-self-improvement.md
+          node -e "const fs=require('fs'); for (const p of ['docs/qa/cognitive-trail.schema.json','docs/qa/qa-report.schema.json','docs/qa/learning-candidate.schema.json']) JSON.parse(fs.readFileSync(p,'utf8'));"
           grep -q "No PASS without evidence" docs/qa/QA-CAPABILITY-MAP.md
           grep -q "Cognitive Trail" docs/qa/QA-CAPABILITY-MAP.md
+          grep -q "TRAINING_PROVIDER_MISSING" src/utils/learningQa.ts
 
       - name: Evidence summary
         if: always()
