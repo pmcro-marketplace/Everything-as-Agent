@@ -1,0 +1,202 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pmcro-marketplace.github.io/schemas/cognitive-trail.schema.json",
+  "title": "Everything-as-Agent Cognitive Trail QA Projection",
+  "description": "QA projection over canonical PmcroTrailFrame v1 records. It externalizes reconstructible execution evidence and never requires hidden chain-of-thought.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "kind",
+    "version",
+    "trail_id",
+    "cycle_id",
+    "raw_intent",
+    "high_level_goal",
+    "complete_cycle",
+    "frames",
+    "checker_verdict",
+    "hidden_chain_of_thought_required"
+  ],
+  "properties": {
+    "kind": {
+      "const": "CognitiveTrail"
+    },
+    "version": {
+      "const": 1
+    },
+    "trail_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "cycle_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "raw_intent": {
+      "type": "string",
+      "minLength": 1
+    },
+    "high_level_goal": {
+      "type": "string",
+      "minLength": 1
+    },
+    "complete_cycle": {
+      "type": "boolean"
+    },
+    "checker_verdict": {
+      "type": "string",
+      "enum": [
+        "PASS",
+        "LOOP",
+        "HALT",
+        "BLOCKED",
+        "NOT_INVOKED",
+        "UNVERIFIED"
+      ]
+    },
+    "promotion_state": {
+      "type": "string",
+      "enum": [
+        "RECORDED",
+        "VERIFIED",
+        "EVALUATED",
+        "APPROVED_FOR_LEARNING",
+        "CANDIDATE",
+        "TESTED",
+        "PROMOTED"
+      ]
+    },
+    "hidden_chain_of_thought_required": {
+      "const": false
+    },
+    "frames": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/pmcroTrailFrame"
+      }
+    }
+  },
+  "$defs": {
+    "pmcroTrailFrame": {
+      "type": "object",
+      "required": [
+        "kind",
+        "version",
+        "trail_id",
+        "frame_id",
+        "parent_id",
+        "phase",
+        "route",
+        "intent",
+        "inputs",
+        "started_at",
+        "status"
+      ],
+      "properties": {
+        "kind": {
+          "const": "PmcroTrailFrame"
+        },
+        "version": {
+          "const": 1
+        },
+        "trail_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "frame_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "parent_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
+        "phase": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "agent": {
+              "type": "string"
+            },
+            "plugin": {
+              "type": "string"
+            },
+            "skill": {
+              "type": "string"
+            },
+            "address": {
+              "type": "string",
+              "minLength": 1
+            },
+            "implementation": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
+        },
+        "intent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "inputs": {},
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "STARTED",
+            "PASS",
+            "FAIL",
+            "BLOCKED",
+            "READY_FOR_HANDOFF",
+            "UNVERIFIED"
+          ]
+        },
+        "finished_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "outcome": {},
+        "evidence": {}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "not": {
+                  "const": "STARTED"
+                }
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "finished_at",
+              "outcome",
+              "evidence"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": true
+    }
+  },
+  "x-pmcro-canonical-source": {
+    "repository": "pmcro-marketplace/marketplace-agent",
+    "commit": "5a384a33fed247fb2b85b177ccb9b6ca3901c36c",
+    "path": "skills/marketplace/scripts/trail.py"
+  }
+}
